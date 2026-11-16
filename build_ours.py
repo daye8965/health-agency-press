@@ -5,9 +5,10 @@
 
   · 아산 보도자료 제목 ← hospital-news-dashboard/docs/hospital_press.json
       amc.seoul.kr 보도자료 게시판에서 받아 둔 날짜·제목. 36KB.
-  · 아산 기사        ← hospital-news-dashboard/docs/news.csv 의 `병원그룹 = 아산` 행
-      네이버 뉴스 수집분. **17MB라 화면에서 직접 읽지 않는다** — 여기서 아산 행만,
-      그것도 최근 OURS_DAYS일치(기본 365일)만 추려 둔다.
+  · 아산 기사        ← hospital-news-dashboard/docs/news.csv 의 `병원그룹 = 아산` 행 중
+      **제목에 `서울아산병원`이 글자 그대로 있는 것만.**
+      네이버 뉴스 수집분. **17MB라 화면에서 직접 읽지 않는다** — 여기서 추려 둔다.
+      최근 OURS_DAYS일치(기본 365일)만 담는다.
 
 `news.csv`의 `매체`는 한글 이름을 못 찾으면 도메인 조각(`newdaily`)으로 남아 있다.
 여기서는 그대로 둔다 — 한글로 바꾸는 목록(`MEDIA_MAP_FE`)이 저쪽 index.html에 있고,
@@ -25,6 +26,7 @@ import csv
 import io
 import json
 import os
+import re
 import sys
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -63,6 +65,14 @@ def main():
         print("! 보도자료 목록을 못 읽었습니다: %s %s" % (type(e).__name__, e))
 
     # ── 우리 기사 (news.csv 의 아산 행) ──────────────────────────────────────
+    # **제목에 `서울아산병원`이 글자 그대로 있는 기사만** 담는다(2026-11-16).
+    # `병원그룹 = 아산`에는 아산이 스쳐 지나가는 기사까지 들어 있어, 정부 보도자료와
+    # 엮으면 우리와 상관없는 것이 끌려왔다 — `혁신의료기기 포럼`(식약처)에
+    # `한국보건산업진흥원 AI 기본의료` 기사가, `마약류 점검`에 `알보젠코리아 ADHD
+    # 치료제` 기사가 붙었다. 둘 다 우리 병원 이야기가 아니다.
+    # 요약·본문은 `news.csv`에서 안 가져오므로 **제목에 없으면 못 거릅니다** —
+    # 본문에만 우리 이름이 있는 기사는 여기서 빠집니다.
+    OURS_RE = re.compile(r"서울아산병원")
     articles = []
     try:
         text = grab("news.csv")
@@ -73,7 +83,7 @@ def main():
             if ymd < since:
                 continue
             title = (r.get("제목") or "").strip()
-            if not title:
+            if not title or not OURS_RE.search(title):
                 continue
             articles.append([ymd, (r.get("매체") or "").strip(), title,
                              (r.get("언론사원문") or r.get("네이버링크") or "").strip()])

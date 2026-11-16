@@ -278,9 +278,16 @@ function ourMatches(p) {
   return hits.slice(0, MATCH_MAX);
 }
 
+// 걸린 낱말(`hit`)까지 들고 온다 — 관련도에 마우스를 올렸을 때 **무엇 때문에 그렇게 봤는지**를
+// 보여 주려는 것이다. 근거가 안 보이면 태그를 믿을 수가 없다
 function topicsOf(p) {
   const text = p['제목'] + ' ' + (p['본문'] || '').slice(0, TAG_HEAD);
-  return TOPICS.filter(t => t.re.test(text));
+  const out = [];
+  for (const t of TOPICS) {
+    const m = t.re.exec(text);
+    if (m) out.push({key: t.key, kind: t.kind, hit: m[0]});
+  }
+  return out;
 }
 // 높음 = 우리 일에 바로 닿는 주제가 있다 · 낮음 = 먼 주제뿐이다 · 보통 = 그 사이
 // **가까운 주제와 먼 주제가 같이 있으면 '보통'으로 내린다.** `복지서비스, AI로 더 똑똑해진
@@ -290,6 +297,19 @@ function relevanceOf(tags) {
   const core = tags.some(t => t.kind === 'core'), far = tags.some(t => t.kind === 'far');
   if (core) return far ? '보통' : '높음';
   return far ? '낮음' : '보통';
+}
+// 관련도에 마우스를 올렸을 때 나오는 설명. **어느 낱말이 걸려서 그 태그가 붙었는지까지** 적는다
+function relReason(p) {
+  const show = kind => p.tags.filter(t => t.kind === kind)
+    .map(t => `${t.key}("${t.hit}")`).join(', ');
+  const core = show('core'), mid = show('mid'), far = show('far');
+  let why;
+  if (core && far) why = `가까운 주제와 먼 주제가 함께 있어 경계로 봅니다.\n· 가까움: ${core}\n· 멂: ${far}`;
+  else if (core)   why = `우리 일에 바로 닿는 주제가 있습니다.\n· 가까움: ${core}`;
+  else if (far)    why = `먼 주제만 있습니다.\n· 멂: ${far}`;
+  else if (mid)    why = `가까운 주제도 먼 주제도 없습니다.\n· 중간: ${mid}`;
+  else             why = `붙은 주제 태그가 없습니다. 규칙이 못 알아본 것일 수 있으니 직접 보세요.`;
+  return `관련도 ${p.rel} — ${why}\n\n제목과 본문 앞 ${TAG_HEAD}자에서 찾은 규칙 기반 추정입니다. 판단은 사람이 합니다.`;
 }
 
 // ── 불러오기 ─────────────────────────────────────────────────────────────────
@@ -487,7 +507,7 @@ function render() {
           <span class="toggle">${isOpen ? '▲ 접기' : '▼ 펼치기'}</span>
         </div>
       </td>
-      <td><span class="rel ${p.rel}">${p.rel}</span></td>
+      <td><span class="rel ${p.rel}" title="${esc(relReason(p))}">${p.rel}</span></td>
       <td><span class="ours-n ${p.matches.length ? '' : 'none'}">${p.matches.length ? p.matches.length + '건' : '—'}</span></td>
       <td class="src"><a href="${esc(p.원문)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">열기 ↗</a></td>
     </tr>` + (isOpen ? `<tr class="detail"><td colspan="6">${bodyHtml(p)}</td></tr>` : '');
@@ -504,9 +524,14 @@ function bodyHtml(p) {
         <span class="why">· 겹친 말: ${esc(m.shared.slice(0, 6).join(', '))}</span>
       </li>`).join('')}</ul>`
     : `<div style="color:var(--muted);font-size:12px">겹치는 자료를 찾지 못했습니다.</div>`;
+  // 첨부 이름은 수집할 때 내려받기 머리글(Content-Disposition)에서 받아 둔 것이다.
+  // 아직 못 받았으면 `첨부 N`으로 둔다 — 다음 수집이 채운다(fetch_sheet.py의 attach_names 참조)
+  const names = p.첨부이름 || [];
   const files = p.첨부 && p.첨부.length
-    ? `<h4>첨부 ${p.첨부.length}개</h4>` + p.첨부.map((u, i) =>
-        `<a href="${esc(u)}" target="_blank" rel="noopener" style="font-size:12px;margin-right:12px;color:var(--accent)">첨부 ${i + 1} ↗</a>`).join('')
+    ? `<h4>첨부 ${p.첨부.length}개</h4><ul class="ours-list">` + p.첨부.map((u, i) =>
+        `<li><a href="${esc(u)}" target="_blank" rel="noopener" style="color:var(--accent)"
+            >${esc(names[i] || `첨부 ${i + 1}`)} ↗</a>${names[i] ? '' :
+            ' <span class="why">· 파일 이름 아직 못 받음</span>'}</li>`).join('') + '</ul>'
     : '';
   return `
     <h4>본문 ${p.상태 ? `(${esc(p.상태)})` : ''}</h4>

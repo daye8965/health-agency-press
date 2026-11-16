@@ -27,6 +27,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
@@ -166,6 +167,77 @@ def build(tables, how):
     }
 
 
+# ── 첨부 파일 이름 ───────────────────────────────────────────────────────────
+# 시트에는 첨부 **주소만** 있고 이름이 없다(`…/down.do?seq=50496&file_seq=1`).
+# 이름은 내려받기 응답의 `Content-Disposition` 머리글에만 들어 있어서 한 번씩 물어본다.
+#
+# **한 번 물어본 주소는 `docs/attach_names.json`에 적어 두고 다시 묻지 않는다.** 첨부가
+# 1,500개가 넘어서 매번 물으면 기관 서버에 그만큼 요청을 보내게 된다. 실패한 것도 빈
+# 이름으로 적어 둔다 — 안 그러면 안 되는 주소를 실행마다 다시 두드린다.
+# 전부 다시 받고 싶으면 그 파일을 지우면 된다.
+#
+# 본문은 **받지 않는다.** `urlopen`은 머리글까지만 읽고 몸통은 `.read()`를 불러야 내려오므로,
+# 머리글만 보고 닫으면 파일을 통째로 받지 않는다. HEAD를 거부하는 게시판이 있어 GET으로 연다.
+ATTACH_CACHE = os.path.join(HERE, "docs", "attach_names.json")
+ATTACH_MAX = int(os.environ.get("ATTACH_MAX", "500"))   # 한 번 실행에 새로 물어볼 개수 상한
+ATTACH_PAUSE = 0.12
+
+
+def parse_disposition(cd):
+    m = re.search(r"filename\*\s*=\s*([\w-]*)''([^;]+)", cd, re.I)
+    if m:
+        from urllib.parse import unquote
+        return unquote(m.group(2).strip().strip('"'), encoding=m.group(1) or "utf-8", errors="replace")
+    m = re.search(r'filename\s*=\s*"?([^";]+)"?', cd, re.I)
+    if not m:
+        return ""
+    raw = m.group(1).strip()
+    # 머리글은 latin-1로 올라오므로 원래 바이트로 되돌린 뒤 UTF-8 → EUC-KR 순으로 풀어 본다.
+    # 한글 파일명을 그냥 쓰면 `ì…ì¹˜…` 처럼 깨진다
+    try:
+        b = raw.encode("latin-1")
+    except UnicodeEncodeError:
+        return raw
+    for enc in ("utf-8", "euc-kr", "cp949"):
+        try:
+            return b.decode(enc)
+        except UnicodeDecodeError:
+            pass
+    return raw
+
+
+def attach_names(press):
+    cache = {}
+    if os.path.exists(ATTACH_CACHE):
+        try:
+            cache = json.load(open(ATTACH_CACHE, encoding="utf-8"))
+        except Exception:                                # noqa: BLE001
+            cache = {}
+    todo = [u for p in press for u in p["첨부"] if u not in cache][:ATTACH_MAX]
+    got = 0
+    for url in todo:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=20) as res:
+                name = parse_disposition(res.headers.get("Content-Disposition") or "")
+            cache[url] = name
+            if name:
+                got += 1
+        except Exception:                                # noqa: BLE001
+            cache[url] = ""
+        time.sleep(ATTACH_PAUSE)
+    for p in press:
+        p["첨부이름"] = [cache.get(u, "") for u in p["첨부"]]
+    if todo:
+        with open(ATTACH_CACHE, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=0, sort_keys=True)
+            f.write("\n")
+    left = sum(1 for p in press for u in p["첨부"] if u not in cache)
+    print("첨부 이름: 새로 %d개 물어 %d개 확인 · 아직 %d개 남음 (총 %d개)"
+          % (len(todo), got, left, sum(len(p["첨부"]) for p in press)))
+    return press
+
+
 def main():
     sa = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
     errors = []
@@ -186,6 +258,7 @@ def main():
     data = build(tables, how)
     if not data["보도자료"]:
         sys.exit("보도자료 탭이 비어 있습니다 — 기존 파일을 그대로 둡니다.")
+    attach_names(data["보도자료"])
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:
