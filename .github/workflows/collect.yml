@@ -1,0 +1,57 @@
+name: 시트 읽어 대시보드 갱신
+
+# Aside가 매일 09:00(KST)에 구글 시트를 채운다. 그 뒤에 읽어야 하므로 오전·오후 두 번 돈다.
+# UTC 02:00 = KST 11:00, UTC 07:00 = KST 16:00.
+# **GitHub 예약 실행은 보통 2~4시간 밀린다**(다른 저장소에서 40회를 재 본 값이다).
+# 밀려도 그날 안에는 들어오고, 급하면 Actions 탭에서 '수동 실행'을 누르면 된다.
+on:
+  schedule:
+    - cron: "0 2 * * *"
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: press-data
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install openpyxl
+
+      - name: 구글 시트 → docs/press.json
+        env:
+          # 시트가 '링크가 있는 모든 사용자'로 열려 있으면 이 열쇠 없이도 읽는다.
+          # 비공개로 되돌리면 이 Secret을 넣고, 시트를 서비스 계정 이메일과 공유하면 된다.
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: python fetch_sheet.py
+
+      # 우리 쪽 자료는 공개 저장소에서 받는다 — 실패해도 정부 보도자료는 갱신되어야 한다
+      - name: 우리 보도자료·기사 → docs/ours.json
+        continue-on-error: true
+        run: python build_ours.py
+
+      - name: 커밋 & 푸시
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/press.json docs/ours.json
+          git diff --staged --quiet && { echo "바뀐 내용 없음"; exit 0; }
+          git commit -m "자동 수집 $(date -u -d '+9 hours' +'%Y-%m-%d %H:%M')"
+          if ! git pull --rebase --autostash origin main; then
+            git rebase --abort || true
+            echo "원격과 충돌해 이번 결과는 버렸습니다 (다음 실행이 다시 가져옵니다)"
+            exit 0
+          fi
+          git push
