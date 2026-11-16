@@ -278,8 +278,7 @@ async function load() {
     ` 관련도·주제 태그는 규칙으로 붙인 <b>추정</b>이고, 판단은 사람이 합니다.`;
 
   fillTopicSelect();
-  buildCards();
-  onFilter();
+  onFilter();              // 안에서 buildCards()까지 한다
 }
 
 function fillTopicSelect() {
@@ -293,6 +292,10 @@ function fillTopicSelect() {
   });
 }
 
+// 카드는 여섯 개 다 누르면 그것만 보이는 필터다(기관 4 + 관련도 높음 + 우리 자료와 엮임).
+// **관련도·엮임 카드는 따로 상태를 두지 않고 아래 필터바의 select·체크박스를 그대로 움직인다** —
+// 상태를 두 벌로 두면 카드는 켜졌는데 필터바는 꺼져 있는 식으로 반드시 어긋난다.
+// 숫자는 늘 **필터와 무관한 전체 기준**이다. 눌러서 좁힌 뒤에도 전체에 몇 건인지 보여야 한다.
 let agencyPick = '';
 function buildCards() {
   const box = document.getElementById('cards');
@@ -300,16 +303,33 @@ function buildCards() {
   press.forEach(p => n[p.기관] = (n[p.기관] || 0) + 1);
   const hi = press.filter(p => p.rel === '높음').length;
   const linked = press.filter(p => p.matches.length).length;
+  const relOn = document.getElementById('rel').value === '높음';
+  const oursOn = document.getElementById('onlyOurs').checked;
   box.innerHTML =
     Object.keys(AGENCY).map(a => `
-      <div class="card ${agencyPick === a ? 'on' : ''}" onclick="pickAgency('${a}')" title="${a}만 보기">
+      <div class="card ${agencyPick === a ? 'on' : ''}" onclick="pickAgency('${a}')"
+           title="${agencyPick === a ? '전체 기관 다시 보기' : a + '만 보기'}">
         <div class="k"><span class="badge" style="background:${AGENCY[a].color}22;color:${AGENCY[a].color}">${AGENCY[a].short}</span></div>
         <div class="v">${n[a] || 0}</div>
       </div>`).join('') +
-    `<div class="card" style="cursor:default"><div class="k">관련도 높음</div><div class="v" style="color:var(--hi)">${hi}</div></div>
-     <div class="card" style="cursor:default"><div class="k">우리 자료와 엮임</div><div class="v" style="color:var(--accent)">${linked}</div></div>`;
+    `<div class="card ${relOn ? 'on' : ''}" onclick="pickHigh()"
+          title="${relOn ? '관련도 전체 다시 보기' : '관련도 높음만 보기'}">
+       <div class="k">관련도 높음</div><div class="v" style="color:var(--hi)">${hi}</div></div>
+     <div class="card ${oursOn ? 'on' : ''}" onclick="pickLinked()"
+          title="${oursOn ? '전체 다시 보기' : '우리 자료와 엮인 것만 보기'}">
+       <div class="k">우리 자료와 엮임</div><div class="v" style="color:var(--accent)">${linked}</div></div>`;
 }
-function pickAgency(a) { agencyPick = (agencyPick === a) ? '' : a; buildCards(); onFilter(); }
+function pickAgency(a) { agencyPick = (agencyPick === a) ? '' : a; onFilter(); }
+function pickHigh() {
+  const s = document.getElementById('rel');
+  s.value = s.value === '높음' ? '' : '높음';
+  onFilter();
+}
+function pickLinked() {
+  const c = document.getElementById('onlyOurs');
+  c.checked = !c.checked;
+  onFilter();
+}
 
 function resetFilters() {
   ['from', 'to', 'q'].forEach(id => document.getElementById(id).value = '');
@@ -317,7 +337,7 @@ function resetFilters() {
   document.getElementById('topic').value = '';
   document.getElementById('onlyOurs').checked = false;
   agencyPick = '';
-  buildCards(); onFilter();
+  onFilter();
 }
 
 // 검색: 공백으로 나눈 모든 낱말을 AND, `-낱말`은 제외. 대상은 제목+본문+부서
@@ -345,6 +365,9 @@ function onFilter() {
     searchHit(p, q));
 
   document.getElementById('count').textContent = `${rows.length}건`;
+  // 카드 하이라이트는 여기서 다시 칠한다 — 필터바의 select·체크박스를 직접 건드렸을 때도
+  // 카드가 따라 켜지고 꺼져야 한다 (카드만 고치면 두 곳이 어긋난다)
+  buildCards();
   render();
 }
 
