@@ -1,115 +1,171 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>보건의료 4개 기관 보도자료</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- SheetJS 무료판은 글꼴·정렬을 저장하지 못해, 같은 API에 서식만 더한 갈래를 쓴다 (연구성과 레이더와 같은 것) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
-/* [hidden]은 브라우저 기본 규칙이라 우선순위가 가장 낮다 — display를 주는 클래스에 밀린다 */
+/* 생김새는 '서울아산병원 연구성과 레이더'와 같은 틀을 쓴다 — 같은 팀이 나란히 쓰는 화면이라
+   짙은 남색 머리글 · Noto Sans KR + DM Mono · 청록 accent · stat-card · table-wrap 그대로다 */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 [hidden]{display:none !important}
 :root{
-  --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --text:#1d2228; --muted:#7b838c;
-  --accent:#1a5fa8; --hi:#c0392b; --mid:#d4780a; --lo:#8a9199;
-  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"나눔고딕코딩",monospace;
+  --bg:#f7f7f5;--surface:#fff;--border:#e4e4e0;
+  --text:#1a1a18;--muted:#6b6b67;--accent:#0e6e7a;--accent-bg:#eaf5f6;--blue:#1a5fa8;
+  --hi:#c0392b;--mid:#b45309;--lo:#9a9a94;
+  --radius:8px;--font:'Noto Sans KR',sans-serif;--mono:'DM Mono',monospace;
 }
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-size:14px;line-height:1.55;
-  font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic","맑은 고딕",sans-serif}
-.wrap{max-width:1360px;margin:0 auto;padding:18px 16px 60px}
-a{color:var(--accent)}
-h1{font-size:19px;margin:0;font-weight:700}
-header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:4px}
-.sub{font-size:12px;color:var(--muted);font-family:var(--mono)}
-.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px}
-.notice{padding:10px 14px;border-radius:8px;font-size:13px;margin:12px 0}
-.notice.warn{background:#fdf0ed;border:1px solid #f3c6bc;color:#8e2f1e}
-.notice.info{background:#eef4fb;border:1px solid #cfe0f2;color:#24496f}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;min-height:100vh}
 
-/* 요약 카드 */
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
-.cards .card{padding:11px 13px;cursor:pointer;transition:border-color .12s}
-.cards .card:hover{border-color:var(--accent)}
-.cards .card.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.cards .k{font-size:12px;color:var(--muted)}
-.cards .v{font-size:21px;font-weight:700;font-family:var(--mono);line-height:1.2}
+header{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#fff;padding:22px 32px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:20}
+header h1{font-size:22px;font-weight:700;letter-spacing:-.4px;color:#fff}
+header p{font-size:12px;color:#cbd5e1;margin-top:3px}
+header #last-updated{font-family:var(--mono);font-size:11px;color:#94a3b8;margin-top:2px}
+#total-badge{font-family:var(--mono);font-size:12px;font-weight:600;background:rgba(255,255,255,.06);
+  color:#e2e8f0;border:1px solid rgba(255,255,255,.25);padding:6px 14px;border-radius:20px;white-space:nowrap}
 
-/* 필터 */
-.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:11px 13px;margin-bottom:12px}
-.bar input[type=date],.bar input[type=search],.bar select{
-  border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:13px;background:#fff;color:inherit}
-.bar input[type=search]{min-width:220px;flex:1}
-.btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:5px 11px;
-  font-size:13px;cursor:pointer;color:inherit}
-.btn:hover{border-color:var(--accent);color:var(--accent)}
-.btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn.excel{background:#1a7a3c;border-color:#1a7a3c;color:#fff}
-.count{font-size:12px;color:var(--muted);font-family:var(--mono);margin-left:auto}
+.filter-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 32px;
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filter-bar input,.filter-bar select{font-family:var(--font);font-size:13px;padding:5px 10px;
+  border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);outline:none}
+.filter-bar input:focus,.filter-bar select:focus{border-color:var(--accent)}
+#search-input{width:240px;max-width:100%}
+.filter-bar button{font-family:var(--font);font-size:13px;padding:5px 12px;border:1px solid var(--border);
+  border-radius:var(--radius);background:var(--bg);color:var(--muted);cursor:pointer}
+.filter-bar button:hover{border-color:var(--accent);color:var(--accent)}
+.excel-btn{display:inline-flex;align-items:center;gap:5px;background:var(--accent)!important;
+  color:#fff!important;border-color:var(--accent)!important}
+#result-count{font-size:12px;color:var(--muted);margin-left:auto;font-family:var(--mono)}
+.check-label{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:4px;
+  cursor:pointer;white-space:nowrap}
 
-/* 목록 */
-.item{border-bottom:1px solid var(--line)}
-.item:last-child{border-bottom:0}
-.row{display:grid;grid-template-columns:86px 104px 1fr auto;gap:10px;align-items:start;
-  padding:11px 14px;cursor:pointer}
-.row:hover{background:#fafbfc}
-.date{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:2px}
-.title{font-weight:600}
-.meta{font-size:12px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:11px;background:#eef1f4;color:#4a545e}
-.rel{font-size:11px;font-weight:700;white-space:nowrap;padding-top:3px;text-align:right}
-.rel.높음{color:var(--hi)} .rel.보통{color:var(--mid)} .rel.낮음{color:var(--lo)}
-.ours-n{font-size:11px;color:var(--accent);font-weight:600}
-.body{padding:0 14px 16px 200px;font-size:13px}
-@media(max-width:900px){.row{grid-template-columns:72px 1fr}.rel,.row>.agency{grid-column:auto}.body{padding-left:14px}}
-.body .txt{white-space:pre-wrap;background:#fafbfc;border:1px solid var(--line);border-radius:8px;
-  padding:12px 14px;max-height:360px;overflow:auto;color:#333}
-.body h4{margin:14px 0 6px;font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.02em}
-.ours li{margin:3px 0}
-.ours .why{color:var(--muted);font-size:11px;font-family:var(--mono)}
+main{padding:20px 32px;max-width:1320px;margin:0 auto}
+.notice{background:#fffbea;border:1px solid #f0e2a8;border-radius:var(--radius);padding:10px 14px;
+  font-size:12px;color:#5a4a00;margin-bottom:14px;line-height:1.7}
+.notice b{font-weight:600}
+.notice.warn{background:#fdf0ed;border-color:#f3c6bc;color:#8e2f1e}
+.notice details{margin-top:4px}
+.notice summary{cursor:pointer;font-weight:600}
+.card-help{margin:4px 0 2px 18px;padding:0}
+.card-help li{margin:1px 0}
+
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 14px;cursor:pointer;text-align:left;font-family:var(--font);transition:border-color .12s,background .12s}
+.stat-card:hover{border-color:var(--accent)}
+.stat-card.on{border-color:var(--accent);background:var(--accent-bg);box-shadow:inset 0 -3px 0 var(--accent)}
+.stat-card .label{font-size:10px;color:var(--muted);letter-spacing:.5px;margin-bottom:3px}
+.stat-card .value{font-size:20px;font-weight:600;font-family:var(--mono)}
+
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:960px}
+thead th{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;padding:9px 10px;
+  text-align:left;background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover,thead th.sortable.on{color:var(--accent)}
+thead th .arrow{margin-left:3px;font-size:9px;opacity:.45}
+thead th.on .arrow{opacity:1}
+tbody tr{border-bottom:1px solid var(--border)}
+tbody tr:last-child{border-bottom:none}
+tbody tr.head-row{cursor:pointer}
+tbody tr.head-row:hover{background:var(--accent-bg)}
+tbody tr.open-row{background:var(--accent-bg)}
+td{padding:10px 10px;vertical-align:top}
+.td-date{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.td-title{font-weight:500;font-size:13px;line-height:1.5}
+.sub{font-size:11px;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.agency{display:inline-block;font-size:11px;font-weight:600;padding:1px 8px;border-radius:4px;white-space:nowrap}
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:3px;background:#f0f0ec;color:#666}
+.tag.core{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.tag.far{background:#f4f4f2;color:#9a9a94}
+.rel{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px;white-space:nowrap}
+.rel.높음{background:var(--hi);color:#fff}
+.rel.보통{background:#fdf0e3;color:var(--mid)}
+.rel.낮음{background:#f0f0ec;color:var(--lo)}
+.ours-n{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--blue);white-space:nowrap}
+.ours-n.none{color:var(--muted);font-weight:400}
+.src a{font-size:11px;color:var(--muted);text-decoration:none;white-space:nowrap}
+.src a:hover{color:var(--accent)}
+.toggle{font-size:10px;color:var(--muted);font-family:var(--mono)}
+
+/* 펼친 줄 */
+.detail td{background:#fcfcfb;padding:4px 18px 18px 18px}
+.detail h4{font-size:10px;color:var(--muted);letter-spacing:.5px;font-weight:600;margin:14px 0 6px}
+.detail h4:first-child{margin-top:8px}
+.body-txt{white-space:pre-wrap;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:12px 14px;max-height:340px;overflow:auto;font-size:12.5px;line-height:1.75;color:#333}
+.ours-list{list-style:none}
+.ours-list li{margin:4px 0;font-size:12px;line-height:1.5}
+.ours-list a{color:var(--text);text-decoration:none;font-weight:500}
+.ours-list a:hover{color:var(--accent)}
+.ours-list .why{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.kind{display:inline-block;font-size:10px;font-weight:600;padding:0 5px;border-radius:3px;
+  background:#e8f0fa;color:var(--blue);margin-right:4px}
+.kind.기사{background:#f0f0ec;color:#666}
 .empty{text-align:center;padding:36px;color:var(--muted);font-size:13px}
+@media(max-width:860px){header,.filter-bar,main{padding-left:16px;padding-right:16px}}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-<header class="top">
-  <h1>보건의료 4개 기관 보도자료</h1>
-  <span class="badge" style="background:#eef4fb;color:#24496f">보건복지부 · 식약처 · 건보공단 · 심평원</span>
-  <span class="sub" id="stamp"></span>
+<header>
+  <div>
+    <h1>📋 보건의료 4개 기관 보도자료</h1>
+    <p>서울아산병원 홍보팀 · 보건복지부 · 식약처 · 건보공단 · 심평원 · 매일 자동 수집 · 제작: 이다예</p>
+    <p id="last-updated">불러오는 중…</p>
+  </div>
+  <span id="total-badge">—</span>
 </header>
-<div class="sub" id="source"></div>
 
-<div id="warn" class="notice warn" hidden></div>
-<div id="fail" class="notice warn" hidden></div>
-
-<div class="cards" id="cards"></div>
-
-<div class="card bar">
-  <input type="date" id="from" onchange="onFilter()">
-  <span style="color:var(--muted)">~</span>
-  <input type="date" id="to" onchange="onFilter()">
+<div class="filter-bar">
+  <input type="date" id="date-from" title="게시일부터" onchange="onFilter()">
+  <span style="color:var(--muted);font-size:12px">~</span>
+  <input type="date" id="date-to" title="게시일까지" onchange="onFilter()">
   <select id="rel" onchange="onFilter()">
     <option value="">관련도 전체</option>
     <option value="높음">높음만</option>
     <option value="높음+보통">높음+보통</option>
     <option value="낮음">낮음만</option>
   </select>
-  <select id="topic" onchange="onFilter()"><option value="">주제 전체</option></select>
-  <input type="search" id="q" placeholder="제목·본문 검색 (여러 낱말은 모두 포함, -낱말은 제외)" oninput="onFilter()">
-  <label style="font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer">
-    <input type="checkbox" id="onlyOurs" onchange="onFilter()"> 우리 자료와 엮인 것만
-  </label>
-  <button class="btn" onclick="resetFilters()">초기화</button>
-  <button class="btn excel" onclick="downloadExcel()">엑셀</button>
-  <span class="count" id="count"></span>
+  <select id="topic" onchange="onFilter()"><option value="">전체 주제</option></select>
+  <input type="text" id="search-input" placeholder="제목·본문 검색 (-제외어)" oninput="onFilter()">
+  <label class="check-label" title="우리 보도자료·기사와 낱말이 겹치는 것만">
+    <input type="checkbox" id="onlyOurs" onchange="onFilter()"> 우리 자료와 엮인 것만</label>
+  <button onclick="resetFilters()">초기화</button>
+  <span id="result-count"></span>
+  <button class="excel-btn" onclick="downloadExcel()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    엑셀 다운로드
+  </button>
 </div>
 
-<div class="card" id="list"><div class="empty">불러오는 중…</div></div>
+<main>
+  <div id="fail" class="notice warn" hidden></div>
+  <div id="warn" class="notice warn" hidden></div>
+  <div class="notice" id="howto">불러오는 중…</div>
 
-<div class="notice info" style="margin-top:18px" id="howto"></div>
-</div>
+  <div class="stats-row" id="cards"></div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th class="sortable" onclick="doSort('날짜')" style="width:84px">게시일 <span class="arrow" id="ar-날짜">↕</span></th>
+        <th class="sortable" onclick="doSort('기관')" style="width:92px">기관 <span class="arrow" id="ar-기관">↕</span></th>
+        <th>보도내용</th>
+        <th class="sortable" onclick="doSort('관련도')" style="width:72px">관련도 <span class="arrow" id="ar-관련도">↕</span></th>
+        <th class="sortable" onclick="doSort('우리자료')" style="width:78px">우리 자료 <span class="arrow" id="ar-우리자료">↕</span></th>
+        <th style="width:54px">원문</th>
+      </tr></thead>
+      <tbody id="tbody"><tr><td colspan="6"><div class="empty">불러오는 중…</div></td></tr></tbody>
+    </table>
+  </div>
+</main>
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
@@ -132,7 +188,7 @@ const AGENCY = {
 //
 // **본문 전체를 보면 안 된다.** 보도자료 뒤쪽에는 근거 법령·참고자료·다른 사업 설명이
 // 붙어 지나가는 말이 다 걸린다 — `폐의약품 수거` 기사에 `노인 일자리`(복지일반)가,
-// `수능 마약류 점검`에 `고혈압`(질환관리)이 그렇게 붙었다. 정부 보도자료는 앞머리에
+// `수능 마약류 점검`에 `고혈압`(질환·검진)이 그렇게 붙었다. 정부 보도자료는 앞머리에
 // 무엇에 대한 글인지가 다 나오므로 거기까지만 본다.
 const TAG_HEAD = 400;
 //
@@ -243,10 +299,10 @@ async function load() {
   try {
     data = await (await fetch('./press.json' + bust)).json();
   } catch (e) {
-    document.getElementById('fail').hidden = false;
-    document.getElementById('fail').textContent =
-      '보도자료 데이터를 불러오지 못했습니다 (docs/press.json). 수집 워크플로가 한 번은 돌아야 합니다.';
-    document.getElementById('list').innerHTML = '<div class="empty">데이터 없음</div>';
+    const f = document.getElementById('fail');
+    f.hidden = false;
+    f.textContent = '보도자료 데이터를 불러오지 못했습니다 (docs/press.json). 수집 워크플로가 한 번은 돌아야 합니다.';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="6"><div class="empty">데이터 없음</div></td></tr>';
     return;
   }
   try { ours = await (await fetch('./ours.json' + bust)).json(); } catch (e) { /* 없으면 엮기만 빠진다 */ }
@@ -257,11 +313,9 @@ async function load() {
     return {...p, tags, rel: relevanceOf(tags), matches: ourMatches(p)};
   });
 
-  document.getElementById('stamp').textContent =
-    `마지막 수집 ${(data['기준시각'] || '').slice(0, 16)} · 전체 ${data['건수']}건`;
-  document.getElementById('source').innerHTML =
-    `원본 <a href="${data['시트']}" target="_blank" rel="noopener">구글 시트</a> ` +
-    `· 우리 자료 ${ourIndex.length}건 (보도자료 ${(ours['보도자료'] || []).length} · 기사 ${(ours['기사'] || []).length}, ${ours['기준일'] || '-'} 이후)`;
+  document.getElementById('total-badge').textContent = `총 ${data['건수']}건`;
+  document.getElementById('last-updated').textContent =
+    `마지막 수집 : ${(data['기준시각'] || '').slice(0, 16)}`;
 
   // 수집로그에 실패가 있으면 숫자를 믿지 말라고 띄운다 — '오류를 신규 0건으로 읽지 않기'
   const last = (data['수집로그'] || [])[0];
@@ -269,13 +323,23 @@ async function load() {
   if (bad.length) {
     const w = document.getElementById('warn');
     w.hidden = false;
-    w.innerHTML = `<b>수집 경고</b> — ${bad.map(b => `${b.기관}: ${b.결과}${b.비고 ? ' (' + b.비고 + ')' : ''}`).join(' · ')}`;
+    w.innerHTML = `<b>수집 경고</b> — ${bad.map(b => `${esc(b.기관)}: ${esc(b.결과)}${b.비고 ? ' (' + esc(b.비고) + ')' : ''}`).join(' · ')}`;
   }
+
+  // 맨 위 안내 — 이 화면을 처음 여는 사람이 가장 먼저 알아야 할 것들
   document.getElementById('howto').innerHTML =
-    `수집은 Aside가 매일 09:00(KST)에 시트를 채우고, GitHub Actions가 그 시트를 읽어 이 화면을 갱신합니다. ` +
-    `<b>화면이 안 바뀌면 수집이 아직 안 돈 것</b>이지 기사가 없는 것이 아닙니다` +
-    (last ? ` (시트 마지막 실행 ${last.실행시각}).` : '.') +
-    ` 관련도·주제 태그는 규칙으로 붙인 <b>추정</b>이고, 판단은 사람이 합니다.`;
+    `보건복지부·식품의약품안전처·국민건강보험공단·건강보험심사평가원의 <b>공식 보도자료</b>를 모읍니다. ` +
+    `줄을 누르면 본문과 <b>우리 쪽 관련 자료</b>가 펼쳐집니다. ` +
+    `<a href="${esc(data['시트'])}" target="_blank" rel="noopener">원본 구글 시트</a> · ` +
+    `우리 자료 ${ourIndex.length}건(보도자료 ${(ours['보도자료'] || []).length} · 기사 ${(ours['기사'] || []).length}, ${esc(ours['기준일'] || '-')} 이후)와 맞춰 봅니다.` +
+    `<ul class="card-help">
+       <li><b>관련도</b> — 주제 태그로 정한 <b>추정</b>입니다. 가까운 주제(<span class="tag core">청록</span>)가 있으면 높음,
+           먼 주제만 있으면 낮음, 둘이 섞이면 보통입니다. <b>판단은 사람이 합니다.</b></li>
+       <li><b>우리 자료</b> — 우리 보도자료·아산 기사 중 낱말이 겹치는 것. 펼치면 <b>어떤 말이 겹쳤는지</b> 같이 보입니다.</li>
+       <li><b>위 카드 여섯 개가 곧 필터입니다</b> — 누르면 그것만, 다시 누르면 풀립니다. 여러 개를 함께 걸 수 있습니다.</li>
+     </ul>` +
+    `<b>수집(Aside)과 화면 갱신(GitHub Actions)은 따로 돕니다</b> — 화면이 안 바뀌면 수집이 아직 안 돈 것이지 ` +
+    `보도자료가 없는 것이 아닙니다` + (last ? ` (시트 마지막 실행 ${esc(last.실행시각)}).` : '.');
 
   fillTopicSelect();
   onFilter();              // 안에서 buildCards()까지 한다
@@ -293,31 +357,30 @@ function fillTopicSelect() {
 }
 
 // 카드는 여섯 개 다 누르면 그것만 보이는 필터다(기관 4 + 관련도 높음 + 우리 자료와 엮임).
-// **관련도·엮임 카드는 따로 상태를 두지 않고 아래 필터바의 select·체크박스를 그대로 움직인다** —
+// **관련도·엮임 카드는 따로 상태를 두지 않고 위 필터바의 select·체크박스를 그대로 움직인다** —
 // 상태를 두 벌로 두면 카드는 켜졌는데 필터바는 꺼져 있는 식으로 반드시 어긋난다.
 // 숫자는 늘 **필터와 무관한 전체 기준**이다. 눌러서 좁힌 뒤에도 전체에 몇 건인지 보여야 한다.
 let agencyPick = '';
 function buildCards() {
-  const box = document.getElementById('cards');
   const n = {};
   press.forEach(p => n[p.기관] = (n[p.기관] || 0) + 1);
   const hi = press.filter(p => p.rel === '높음').length;
   const linked = press.filter(p => p.matches.length).length;
   const relOn = document.getElementById('rel').value === '높음';
   const oursOn = document.getElementById('onlyOurs').checked;
-  box.innerHTML =
+  document.getElementById('cards').innerHTML =
     Object.keys(AGENCY).map(a => `
-      <div class="card ${agencyPick === a ? 'on' : ''}" onclick="pickAgency('${a}')"
+      <div class="stat-card ${agencyPick === a ? 'on' : ''}" onclick="pickAgency('${a}')"
            title="${agencyPick === a ? '전체 기관 다시 보기' : a + '만 보기'}">
-        <div class="k"><span class="badge" style="background:${AGENCY[a].color}22;color:${AGENCY[a].color}">${AGENCY[a].short}</span></div>
-        <div class="v">${n[a] || 0}</div>
+        <div class="label" style="color:${AGENCY[a].color};font-weight:700">${AGENCY[a].short}</div>
+        <div class="value">${n[a] || 0}</div>
       </div>`).join('') +
-    `<div class="card ${relOn ? 'on' : ''}" onclick="pickHigh()"
+    `<div class="stat-card ${relOn ? 'on' : ''}" onclick="pickHigh()"
           title="${relOn ? '관련도 전체 다시 보기' : '관련도 높음만 보기'}">
-       <div class="k">관련도 높음</div><div class="v" style="color:var(--hi)">${hi}</div></div>
-     <div class="card ${oursOn ? 'on' : ''}" onclick="pickLinked()"
+       <div class="label">관련도 높음</div><div class="value" style="color:var(--hi)">${hi}</div></div>
+     <div class="stat-card ${oursOn ? 'on' : ''}" onclick="pickLinked()"
           title="${oursOn ? '전체 다시 보기' : '우리 자료와 엮인 것만 보기'}">
-       <div class="k">우리 자료와 엮임</div><div class="v" style="color:var(--accent)">${linked}</div></div>`;
+       <div class="label">우리 자료와 엮임</div><div class="value" style="color:var(--blue)">${linked}</div></div>`;
 }
 function pickAgency(a) { agencyPick = (agencyPick === a) ? '' : a; onFilter(); }
 function pickHigh() {
@@ -332,7 +395,7 @@ function pickLinked() {
 }
 
 function resetFilters() {
-  ['from', 'to', 'q'].forEach(id => document.getElementById(id).value = '');
+  ['date-from', 'date-to', 'search-input'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('rel').value = '';
   document.getElementById('topic').value = '';
   document.getElementById('onlyOurs').checked = false;
@@ -348,12 +411,27 @@ function searchHit(p, q) {
     term.startsWith('-') ? !hay.includes(term.slice(1)) : hay.includes(term));
 }
 
+// ── 정렬 ─────────────────────────────────────────────────────────────────────
+const REL_ORDER = {'높음': 0, '보통': 1, '낮음': 2};
+let sort = {col: '날짜', asc: false};
+function doSort(col) {
+  if (sort.col === col) sort.asc = !sort.asc;
+  else sort = {col, asc: col === '기관'};   // 날짜·관련도·우리자료는 큰 것부터가 쓸모 있다
+  onFilter();
+}
+function sortValue(p, col) {
+  if (col === '기관') return p.기관;
+  if (col === '관련도') return String(REL_ORDER[p.rel]);
+  if (col === '우리자료') return String(p.matches.length).padStart(3, '0');
+  return p.날짜 + p.id;
+}
+
 function onFilter() {
-  const from = document.getElementById('from').value;
-  const to = document.getElementById('to').value;
+  const from = document.getElementById('date-from').value;
+  const to = document.getElementById('date-to').value;
   const rel = document.getElementById('rel').value;
   const topic = document.getElementById('topic').value;
-  const q = document.getElementById('q').value.trim();
+  const q = document.getElementById('search-input').value.trim();
   const onlyOurs = document.getElementById('onlyOurs').checked;
 
   rows = press.filter(p =>
@@ -364,7 +442,16 @@ function onFilter() {
     (!onlyOurs || p.matches.length) &&
     searchHit(p, q));
 
-  document.getElementById('count').textContent = `${rows.length}건`;
+  const dir = sort.asc ? 1 : -1;
+  rows.sort((a, b) => sortValue(a, sort.col).localeCompare(sortValue(b, sort.col), 'ko') * dir
+                      || b.날짜.localeCompare(a.날짜));
+
+  document.getElementById('result-count').textContent = `${rows.length}건`;
+  ['날짜', '기관', '관련도', '우리자료'].forEach(c => {
+    const th = document.getElementById('ar-' + c).parentElement;
+    th.classList.toggle('on', sort.col === c);
+    document.getElementById('ar-' + c).textContent = sort.col === c ? (sort.asc ? '↑' : '↓') : '↕';
+  });
   // 카드 하이라이트는 여기서 다시 칠한다 — 필터바의 select·체크박스를 직접 건드렸을 때도
   // 카드가 따라 켜지고 꺼져야 한다 (카드만 고치면 두 곳이 어긋난다)
   buildCards();
@@ -380,54 +467,54 @@ const open = new Set();
 function toggle(id) { open.has(id) ? open.delete(id) : open.add(id); render(); }
 
 function render() {
-  const box = document.getElementById('list');
-  if (!rows.length) { box.innerHTML = '<div class="empty">조건에 맞는 보도자료가 없습니다.</div>'; return; }
+  const box = document.getElementById('tbody');
+  if (!rows.length) {
+    box.innerHTML = '<tr><td colspan="6"><div class="empty">조건에 맞는 보도자료가 없습니다.</div></td></tr>';
+    return;
+  }
   box.innerHTML = rows.map(p => {
     const a = AGENCY[p.기관] || {short: p.기관, color: '#666'};
     const isOpen = open.has(p.id);
-    return `<div class="item">
-      <div class="row" onclick="toggle('${esc(p.id)}')">
-        <div class="date">${esc(p.날짜)}</div>
-        <div class="agency"><span class="badge" style="background:${a.color}1a;color:${a.color}">${esc(a.short)}</span></div>
-        <div>
-          <div class="title">${esc(p.제목)}</div>
-          <div class="meta">
-            ${p.부서 ? `<span>${esc(p.부서)}</span>` : ''}
-            ${p.tags.map(t => `<span class="tag">${esc(t.key)}</span>`).join('')}
-            ${p.matches.length ? `<span class="ours-n">우리 자료 ${p.matches.length}건</span>` : ''}
-            ${p.상태 && p.상태 !== '전체' ? `<span class="tag" style="background:#fdf0ed;color:#8e2f1e">본문 ${esc(p.상태)}</span>` : ''}
-          </div>
+    return `<tr class="head-row ${isOpen ? 'open-row' : ''}" onclick="toggle('${esc(p.id)}')">
+      <td class="td-date">${esc(p.날짜)}</td>
+      <td><span class="agency" style="background:${a.color}1a;color:${a.color}">${esc(a.short)}</span></td>
+      <td>
+        <div class="td-title">${esc(p.제목)}</div>
+        <div class="sub">
+          ${p.부서 ? `<span>${esc(p.부서)}</span>` : ''}
+          ${p.tags.map(t => `<span class="tag ${t.kind}">${esc(t.key)}</span>`).join('')}
+          ${p.상태 && p.상태 !== '전체' ? `<span class="tag far">본문 ${esc(p.상태)}</span>` : ''}
+          <span class="toggle">${isOpen ? '▲ 접기' : '▼ 펼치기'}</span>
         </div>
-        <div class="rel ${p.rel}">${p.rel}<div style="font-weight:400;color:var(--muted);font-size:10px">${isOpen ? '접기' : '펼치기'}</div></div>
-      </div>
-      ${isOpen ? bodyHtml(p) : ''}
-    </div>`;
+      </td>
+      <td><span class="rel ${p.rel}">${p.rel}</span></td>
+      <td><span class="ours-n ${p.matches.length ? '' : 'none'}">${p.matches.length ? p.matches.length + '건' : '—'}</span></td>
+      <td class="src"><a href="${esc(p.원문)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">열기 ↗</a></td>
+    </tr>` + (isOpen ? `<tr class="detail"><td colspan="6">${bodyHtml(p)}</td></tr>` : '');
   }).join('');
 }
 
 function bodyHtml(p) {
-  const ours = p.matches.length ? `
-    <h4>우리 쪽 관련 자료 ${p.matches.length}건</h4>
-    <ul class="ours">${p.matches.map(m => `
-      <li><span class="tag">${esc(m.kind)}</span>
-        <span class="date">${esc(m.ymd)}</span>
+  const list = p.matches.length ? `
+    <ul class="ours-list">${p.matches.map(m => `
+      <li><span class="kind ${m.kind}">${esc(m.kind)}</span>
+        <span class="td-date">${esc(m.ymd)}</span>
         ${m.link ? `<a href="${esc(m.link)}" target="_blank" rel="noopener">${esc(m.title)}</a>` : esc(m.title)}
         ${m.media ? `<span class="why">· ${esc(m.media)}</span>` : ''}
         <span class="why">· 겹친 말: ${esc(m.shared.slice(0, 6).join(', '))}</span>
       </li>`).join('')}</ul>`
-    : `<h4>우리 쪽 관련 자료</h4><div style="color:var(--muted);font-size:12px">겹치는 자료를 찾지 못했습니다.</div>`;
+    : `<div style="color:var(--muted);font-size:12px">겹치는 자료를 찾지 못했습니다.</div>`;
   const files = p.첨부 && p.첨부.length
     ? `<h4>첨부 ${p.첨부.length}개</h4>` + p.첨부.map((u, i) =>
-        `<a href="${esc(u)}" target="_blank" rel="noopener" style="margin-right:10px">첨부 ${i + 1}</a>`).join('')
+        `<a href="${esc(u)}" target="_blank" rel="noopener" style="font-size:12px;margin-right:12px;color:var(--accent)">첨부 ${i + 1} ↗</a>`).join('')
     : '';
-  return `<div class="body">
+  return `
     <h4>본문 ${p.상태 ? `(${esc(p.상태)})` : ''}</h4>
-    <div class="txt">${esc(p.본문) || '본문이 저장되지 않았습니다.'}</div>
+    <div class="body-txt">${esc(p.본문) || '본문이 저장되지 않았습니다.'}</div>
     ${p.비고 ? `<div style="font-size:11px;color:var(--muted);margin-top:6px">수집 비고: ${esc(p.비고)}</div>` : ''}
     ${files}
-    ${ours}
-    <h4>원문</h4><a href="${esc(p.원문)}" target="_blank" rel="noopener">${esc(p.원문)}</a>
-  </div>`;
+    <h4>우리 쪽 관련 자료 ${p.matches.length ? p.matches.length + '건' : ''}</h4>
+    ${list}`;
 }
 
 // ── 엑셀 ─────────────────────────────────────────────────────────────────────
