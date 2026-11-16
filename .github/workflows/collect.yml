@@ -46,7 +46,9 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/press.json docs/ours.json
+          # attach_names.json을 빠뜨리면 **매 실행마다 첨부 이름을 처음부터 다시 묻는다**
+          # (실제로 첫 실행에서 500개를 묻고 버렸다). 캐시가 쌓여야 서너 번에 다 찬다
+          git add docs/press.json docs/ours.json docs/attach_names.json
           git diff --staged --quiet && { echo "바뀐 내용 없음"; exit 0; }
           git commit -m "자동 수집 $(date -u -d '+9 hours' +'%Y-%m-%d %H:%M')"
           if ! git pull --rebase --autostash origin main; then

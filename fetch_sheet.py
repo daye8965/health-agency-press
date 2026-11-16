@@ -192,6 +192,12 @@ def parse_disposition(cd):
     if not m:
         return ""
     raw = m.group(1).strip()
+    # **게시판 대부분이 `filename=` 값에 퍼센트 인코딩을 그대로 넣는다** —
+    # `%5B%EB%B3%B4%EB%8F%84%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C%5D+….hwpx`.
+    # 안 풀면 화면에 그 글자가 그대로 나온다(실제로 217건이 그렇게 나왔다). 공백은 `+`다
+    if re.search(r"%[0-9A-Fa-f]{2}", raw):
+        from urllib.parse import unquote_plus
+        return unquote_plus(raw, encoding="utf-8", errors="replace")
     # 머리글은 latin-1로 올라오므로 원래 바이트로 되돌린 뒤 UTF-8 → EUC-KR 순으로 풀어 본다.
     # 한글 파일명을 그냥 쓰면 `ì…ì¹˜…` 처럼 깨진다
     try:
